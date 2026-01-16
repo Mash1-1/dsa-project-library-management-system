@@ -54,18 +54,38 @@ public:
     // Searching & Filtering Operations
     // =====================================================
 
-    Book *searchBookById(int bookID);
-    // Searches for a book using its unique ID.
-    // Returns a pointer to the book if found, otherwise returns nullptr.
+    Book *searchBookById(int bookID)
+    {
+        Book *result = nullptr;
+        for (Book &book : books){
+            if(book.id == bookID){
+                result = &book;
+                break;
+            }
+        }
+        return result;
+    }
 
-    vector<Book *> searchBooksByTitle(string titleKeyword);
-    // Searches for books whose titles contain the given keyword.
-    // Returns a list of pointers to matching books.
+    vector<Book *> searchBooksByTitle(string titleKeyword){
+        vector<Book *> results;
+        for (Book &book : books){
+            if(book.title.find(titleKeyword) != string::npos){
+                results.push_back(&book);
+            }
+        }
+        return results;
+    }
 
-    vector<Book *> filterBooksByCategory(string category);
-    // Filters books based on their category.
-    // Returns a list of books belonging to the specified category.
-
+    vector<Book *> filterBooksByCategory(string category){
+        vector<Book *> results;
+        for(Book &book: books){
+            if(book.category == category){
+                results.push_back(&book);
+            }
+        }
+        return results;
+    }
+    
     // =====================================================
     // Book Management Operations
     // =====================================================
