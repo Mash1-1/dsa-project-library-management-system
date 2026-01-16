@@ -47,6 +47,7 @@ class LibraryManagementSystem
 private:
     vector<Book> books;            // Container holding all books in the library
     vector<Reserve> reservedBooks; // Container holding all active reservations
+    vector<Student> students;      // Students
 
 public:
     // =====================================================
