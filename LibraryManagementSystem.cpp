@@ -57,8 +57,10 @@ public:
     Book *searchBookById(int bookID)
     {
         Book *result = nullptr;
-        for (Book &book : books){
-            if(book.id == bookID){
+        for (Book &book : books)
+        {
+            if (book.id == bookID)
+            {
                 result = &book;
                 break;
             }
@@ -66,26 +68,32 @@ public:
         return result;
     }
 
-    vector<Book *> searchBooksByTitle(string titleKeyword){
+    vector<Book *> searchBooksByTitle(string titleKeyword)
+    {
         vector<Book *> results;
-        for (Book &book : books){
-            if(book.title.find(titleKeyword) != string::npos){
+        for (Book &book : books)
+        {
+            if (book.title.find(titleKeyword) != string::npos)
+            {
                 results.push_back(&book);
             }
         }
         return results;
     }
 
-    vector<Book *> filterBooksByCategory(string category){
+    vector<Book *> filterBooksByCategory(string category)
+    {
         vector<Book *> results;
-        for(Book &book: books){
-            if(book.category == category){
+        for (Book &book : books)
+        {
+            if (book.category == category)
+            {
                 results.push_back(&book);
             }
         }
         return results;
     }
-    
+
     // =====================================================
     // Book Management Operations
     // =====================================================
@@ -461,6 +469,31 @@ public:
         cout << "Library data saved successfully \n";
     }
 
+    // Helper functions
+    // Helper function for calculating due date
+    string calculateDueDate(int daysToAdd)
+    {
+        time_t now = time(0);
+        tm *future = localtime(&now);
+
+        future->tm_mday += daysToAdd;
+        mktime(future); // normalizes date
+
+        char buffer[11];
+        strftime(buffer, sizeof(buffer), "%Y-%m-%d", future);
+
+        return string(buffer);
+    }
+
+    string getCurrentDate()
+    {
+        time_t now = time(0);
+        tm *ltm = localtime(&now);
+        char buffer[11];
+        strftime(buffer, sizeof(buffer), "%Y-%m-%d", ltm);
+        return string(buffer);
+    }
+
     // =====================================================
     // Menu System & Quality-of-Life Utilities
     // =====================================================
@@ -469,13 +502,19 @@ public:
     // Prevents information from disappearing too quickly.
     void displayMainMenu()
     {
-        clearScreen();
-        cout << "Welcome to the Library Management System" << endl;
+        int choice;
+
+        cout << "\nWelcome to the Library Management System" << endl;
         cout << "Please select your role:" << endl;
         cout << "1. Admin" << endl;
         cout << "2. Student" << endl;
         cout << "0. Exit" << endl;
         cout << "Enter your choice: ";
+
+        cin >> choice;
+        cin.ignore();
+
+        handleUserChoice(choice);
     }
     // Menu with option asking if the user is a student or admin (no passwords and stuff, just 1. admin 2. user then lead to uses)
     // Displays all available actions in a user-friendly menu format.
@@ -511,8 +550,7 @@ public:
         int adminChoice;
         do
         {
-            clearScreen();
-            cout << "Admin Menu:" << endl;
+            cout << "\nAdmin Menu:" << endl;
             cout << "1. Add Book" << endl;
             cout << "2. Update Book Details" << endl;
             cout << "3. Remove Book" << endl;
@@ -638,6 +676,7 @@ public:
                 break;
             }
             case 0:
+                displayMainMenu();
                 break;
             default:
                 cout << "Invalid choice. Please try again." << endl;
@@ -656,15 +695,14 @@ public:
         if (!student)
         {
             cout << "Student ID not found. Returning to main menu." << endl;
-            pauseForUser();
+            displayMainMenu();
             return;
         }
 
         int studentChoice;
         do
         {
-            clearScreen();
-            cout << "Student Menu (ID: " << studentID << "):" << endl;
+            cout << "\nStudent Menu (ID: " << studentID << "):" << endl;
             cout << "1. Search Books by Title" << endl;
             cout << "2. Filter Books by Category" << endl;
             cout << "3. Borrow Book" << endl;
@@ -804,6 +842,7 @@ public:
                 break;
             }
             case 0:
+                displayMainMenu();
                 break;
             default:
                 cout << "Invalid choice. Please try again." << endl;
@@ -838,12 +877,6 @@ public:
     }
     // Displays all books with formatted details for better readability.
 
-    void clearScreen()
-    {
-        system("cls");
-    }
-    // Clears the console screen to improve user experience.
-
     void pauseForUser()
     {
         cout << "Press Enter to continue...";
@@ -855,6 +888,10 @@ public:
 
 int main()
 {
+    LibraryManagementSystem lms;
+
+    lms.displayMainMenu();
+
     return 0;
 }
 
@@ -940,28 +977,4 @@ bool LibraryManagementSystem::renewBook(int bookID, string studentID)
     }
 
     return false; // book not borrowed by this student
-}
-
-// Helper function for calculating due date
-string calculateDueDate(int daysToAdd)
-{
-    time_t now = time(0);
-    tm *future = localtime(&now);
-
-    future->tm_mday += daysToAdd;
-    mktime(future); // normalizes date
-
-    char buffer[11];
-    strftime(buffer, sizeof(buffer), "%Y-%m-%d", future);
-
-    return string(buffer);
-}
-
-string getCurrentDate()
-{
-    time_t now = time(0);
-    tm *ltm = localtime(&now);
-    char buffer[11];
-    strftime(buffer, sizeof(buffer), "%Y-%m-%d", ltm);
-    return string(buffer);
 }
