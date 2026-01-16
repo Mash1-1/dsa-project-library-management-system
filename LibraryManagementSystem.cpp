@@ -177,3 +177,87 @@ int main()
 {
     return 0;
 }
+
+bool LibraryManagementSystem::borrowBook(int bookID, string studentID)
+{
+    Book *book = searchBookById(bookID);
+    Student *student = findStudentById(studentID);
+
+    if (!book || !student)
+        return false;
+
+    if (book->availableCopies <= 0)
+        return false;
+
+    // Find empty loan slot
+    for (int i = 0; i < maxBorrows; i++)
+    {
+        if (student->borrowedBooks[i].bookID == 0)
+        {
+            student->borrowedBooks[i].bookID = bookID;
+            student->borrowedBooks[i].studentID = studentID;
+            student->borrowedBooks[i].returnDate = "DUE_DATE";
+
+            book->availableCopies--;
+            return true;
+        }
+    }
+
+    return false; // borrow limit reached
+}
+
+bool LibraryManagementSystem::returnBook(int bookID, string studentID, string returnDate)
+{
+    Book *book = searchBookById(bookID);
+    Student *student = findStudentById(studentID);
+
+    if (!book || !student)
+        return false;
+
+    for (int i = 0; i < maxBorrows; i++)
+    {
+        if (student->borrowedBooks[i].bookID == bookID)
+        {
+            // Fine calculation (simple)
+            if (returnDate > student->borrowedBooks[i].returnDate)
+                student->fine += 10;
+
+            // Clear loan record
+            student->borrowedBooks[i].bookID = 0;
+            student->borrowedBooks[i].studentID = "";
+            student->borrowedBooks[i].returnDate = "";
+
+            book->availableCopies++;
+
+            processReservations(bookID);
+            return true;
+        }
+    }
+
+    return false; // book not found in student's loans
+}
+
+bool LibraryManagementSystem::renewBook(int bookID, string studentID)
+{
+    // Check if another student has reserved this book
+    for (const auto &r : reservedBooks)
+    {
+        if (r.bookID == bookID && r.studentID != studentID)
+            return false;
+    }
+
+    Student *student = findStudentById(studentID);
+    if (!student)
+        return false;
+
+    for (int i = 0; i < maxBorrows; i++)
+    {
+        if (student->borrowedBooks[i].bookID == bookID)
+        {
+            student->borrowedBooks[i].returnDate = "EXTENDED_DUE_DATE";
+            return true;
+        }
+    }
+
+    return false; // book not borrowed by this student
+}
