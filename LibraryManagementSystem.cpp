@@ -642,7 +642,7 @@ bool LibraryManagementSystem::borrowBook(int bookID, string studentID)
         {
             student->borrowedBooks[i].bookID = bookID;
             student->borrowedBooks[i].studentID = studentID;
-            student->borrowedBooks[i].returnDate = "DUE_DATE";
+            student->borrowedBooks[i].returnDate = calculateDueDate(loanDuration);
 
             book->availableCopies--;
             return true;
@@ -700,10 +700,25 @@ bool LibraryManagementSystem::renewBook(int bookID, string studentID)
     {
         if (student->borrowedBooks[i].bookID == bookID)
         {
-            student->borrowedBooks[i].returnDate = "EXTENDED_DUE_DATE";
+            student->borrowedBooks[i].returnDate = calculateDueDate(loanDuration);
             return true;
         }
     }
 
     return false; // book not borrowed by this student
+}
+
+// Helper function for calculating due date
+string calculateDueDate(int daysToAdd)
+{
+    time_t now = time(0);
+    tm *future = localtime(&now);
+
+    future->tm_mday += daysToAdd;
+    mktime(future); // normalizes date
+
+    char buffer[11];
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d", future);
+
+    return string(buffer);
 }
