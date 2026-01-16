@@ -135,17 +135,83 @@ public:
     // Reports, Sorting & Persistence Preparation
     // =====================================================
 
-    vector<Book> getOverdueBooks();
+    vector<Book> getOverdueBooks(){
     // Collects all books that are currently overdue.
     // Used for reporting and monitoring late returns.
+   // Loop over all students using index
+   vector<Book> overdueBooks;
+    for (int s = 0; s < students.size(); s++) {
+        Student &student = students[s]; // get current student
 
-    void sortBooksByTitle();
+        // Loop over borrowed books
+        for (int i = 0; i < maxBorrows; i++) {
+            if (student.borrowedBooks[i].bookID != 0) {
+                // Check if the book is overdue
+                if (student.borrowedBooks[i].returnDate < "TODAY_DATE") {
+                    Book *book = searchBookById(student.borrowedBooks[i].bookID);
+                    if (book) {
+                        overdueBooks.push_back(*book);
+                    }
+                }
+            }
+        }
+    }
+
+    return overdueBooks;  
+}
+
+    void sortBooksByTitle(){
     // Sorts the library's books alphabetically by title.
     // Intended to be implemented using a basic sorting algorithm.
+    int n=books.size();
+    for(int i=0;i<n-1;i++){
+        for(int j=0;j<n-i-1;j++){
+          if(books[j].title>books[j+1].title){
+            // swaps the book
+            Book temp=books[j];
+            books[j]=books[j+1];
+            books[j+1]=temp;
+          }
+        }
+    }
+    }
 
-    void saveLibraryData();
+    void saveLibraryData(){
     // Prepares all library data (books, students, reservations)
     // for saving to persistent storage such as a file.
+        ofstream file("library_data.txt");
+        if(!file.is_open()){
+            cout<<"Failed to open file for saving .\n";
+            return;
+        }
+        // save books
+         file << "Books:\n";
+    for (int i = 0; i < books.size(); i++) {
+        file << books[i].id << "," 
+             << books[i].title << "," 
+             << books[i].author << "," 
+             << books[i].category << "," 
+             << books[i].totalCopies << "," 
+             << books[i].availableCopies << "\n";
+    }
+        // Step 3: Save students
+    file << "\nStudents:\n";
+    for (int i = 0; i < students.size(); i++) {
+        file << students[i].id << "," 
+             << students[i].name << "," 
+             << students[i].email << "," 
+             << students[i].phoneNumber << "," 
+             << students[i].fine << "\n";
+    }
+        // Step 4: Save reservations
+    file << "\nReservations:\n";
+    for (int i = 0; i < reservedBooks.size(); i++) {
+        file << reservedBooks[i].bookID << "," 
+             << reservedBooks[i].studentID << "\n";
+    }
+    file.close();
+    cout<<"Library data saved successfully \n";
+    }
 
     // =====================================================
     // Menu System & Quality-of-Life Utilities
