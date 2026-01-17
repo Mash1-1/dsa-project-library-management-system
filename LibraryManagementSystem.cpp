@@ -114,8 +114,6 @@ public:
 
         return true;
     }
-    // Adds a new book to the library collection.
-    // Ensures the book ID is unique and initializes available copies.
 
     bool updateBookDetails(int bookID, string newTitle, string newAuthor, string newCategory)
     {
@@ -133,8 +131,6 @@ public:
 
         return false;
     }
-    // Updates title, author, and category of an existing book.
-    // Does not change copy counts.
 
     bool removeBook(int bookID)
     {
@@ -168,17 +164,89 @@ public:
     // Borrowing, Returning & Renewal Operations
     // =====================================================
 
-    bool borrowBook(int bookID, string studentID);
-    // Allows a student to borrow a book if copies are available.
-    // Updates student borrowing records and available copy count.
+    bool borrowBook(int bookID, string studentID)
+    {
+        Book *book = searchBookById(bookID);
+        Student *student = findStudentById(studentID);
 
-    bool returnBook(int bookID, string studentID, string returnDate);
-    // Processes the return of a book.
-    // Calculates fines if the book is returned late and updates availability.
+        if (!book || !student)
+            return false;
 
-    bool renewBook(int bookID, string studentID);
-    // Renews a borrowed book by extending its due date.
-    // Renewal is denied if the book is reserved by another student.
+        if (book->availableCopies <= 0)
+            return false;
+
+        // Find empty loan slot
+        for (int i = 0; i < maxBorrows; i++)
+        {
+            if (student->borrowedBooks[i].bookID == 0)
+            {
+                student->borrowedBooks[i].bookID = bookID;
+                student->borrowedBooks[i].studentID = studentID;
+                student->borrowedBooks[i].returnDate = calculateDueDate(loanDuration);
+
+                book->availableCopies--;
+                return true;
+            }
+        }
+
+        return false; // borrow limit reached
+    };
+
+    bool returnBook(int bookID, string studentID, string returnDate)
+    {
+        Book *book = searchBookById(bookID);
+        Student *student = findStudentById(studentID);
+
+        if (!book || !student)
+            return false;
+
+        for (int i = 0; i < maxBorrows; i++)
+        {
+            if (student->borrowedBooks[i].bookID == bookID)
+            {
+                // Fine calculation (simple)
+                if (returnDate > student->borrowedBooks[i].returnDate)
+                    student->fine += 10;
+
+                // Clear loan record
+                student->borrowedBooks[i].bookID = 0;
+                student->borrowedBooks[i].studentID = "";
+                student->borrowedBooks[i].returnDate = "";
+
+                book->availableCopies++;
+
+                processReservations(bookID);
+                return true;
+            }
+        }
+
+        return false; // book not found in student's loans
+    };
+
+    bool renewBook(int bookID, string studentID)
+    {
+        // Check if another student has reserved this book
+        for (const auto &r : reservedBooks)
+        {
+            if (r.bookID == bookID && r.studentID != studentID)
+                return false;
+        }
+
+        Student *student = findStudentById(studentID);
+        if (!student)
+            return false;
+
+        for (int i = 0; i < maxBorrows; i++)
+        {
+            if (student->borrowedBooks[i].bookID == bookID)
+            {
+                student->borrowedBooks[i].returnDate = calculateDueDate(loanDuration);
+                return true;
+            }
+        }
+
+        return false; // book not borrowed by this student
+    };
 
     // =====================================================
     // Reservation & Queue-Based Operations
@@ -241,9 +309,6 @@ public:
 
         return true;
     }
-    // Allows a student to reserve a book if all copies are currently borrowed.
-    // Enforces reservation limits.
-    // Should store in a queue
 
     Reserve *getNextReservation(int bookID)
     {
@@ -252,15 +317,13 @@ public:
         {
             if (it->bookID == bookID)
             {
-                // Return pointer to the earliest (first) reservation for this book
+
                 return &(*it);
             }
         }
-        // No reservation found for this book
+
         return nullptr;
     }
-    // Retrieves the earliest reservation made for a specific book.
-    // Used to fairly assign returned copies.
 
     void processReservations(int bookID)
     {
@@ -272,8 +335,6 @@ public:
             return;
         }
 
-        // Automatically assign the book to the reserving student by borrowing it for them
-        // Assuming borrowBook handles availability, limits, fines, etc.
         bool assigned = borrowBook(bookID, nextRes->studentID);
 
         if (assigned)
@@ -287,12 +348,6 @@ public:
                     break; // Erase only the first matching one
                 }
             }
-        }
-        else
-        {
-            // If assignment failed (e.g., student now has fines or reached limits),
-            // we could optionally remove it or notify, but for simplicity, leave it in queue
-            // In a real system, might notify admin or student
         }
     }
 
@@ -321,8 +376,6 @@ public:
         students.push_back(newStudent);
         return true;
     }
-    // Registers a new student in the library system.
-    // Ensures student ID uniqueness.
 
     Student *findStudentById(string studentID)
     {
@@ -338,8 +391,6 @@ public:
         // Student not found, return nullptr
         return nullptr;
     }
-    // Searches for and returns a student by ID.
-    // Returns nullptr if the student does not exist.
 
     int calculateTotalFine(string studentID)
     {
@@ -369,8 +420,6 @@ public:
 
         return totalFine;
     }
-    // Calculates and returns the total fine owed by a student
-    // based on overdue borrowed books.
 
     // =====================================================
     // Reports, Sorting & Persistence Preparation
@@ -378,9 +427,6 @@ public:
 
     vector<Book> getOverdueBooks()
     {
-        // Collects all books that are currently overdue.
-        // Used for reporting and monitoring late returns.
-        // Loop over all students using index
         vector<Book> overdueBooks;
         for (int s = 0; s < students.size(); s++)
         {
@@ -407,10 +453,35 @@ public:
         return overdueBooks;
     }
 
+    void displayOverdueBooks()
+    {
+        vector<Book> overdueBooks = getOverdueBooks();
+
+        if (overdueBooks.empty())
+        {
+            cout << "\nNo overdue books found.\n";
+            return;
+        }
+
+        cout << "\n=========== OVERDUE BOOKS ===========\n";
+
+        for (int i = 0; i < overdueBooks.size(); i++)
+        {
+            cout << "\nBook " << i + 1 << ":\n";
+            cout << "-----------------------------------\n";
+            cout << "ID        : " << overdueBooks[i].id << endl;
+            cout << "Title     : " << overdueBooks[i].title << endl;
+            cout << "Author    : " << overdueBooks[i].author << endl;
+            cout << "Category  : " << overdueBooks[i].category << endl;
+            cout << "Available : " << overdueBooks[i].availableCopies
+                 << " / " << overdueBooks[i].totalCopies << endl;
+        }
+
+        cout << "\n====================================\n";
+    }
+
     void sortBooksByTitle()
     {
-        // Sorts the library's books alphabetically by title.
-        // Intended to be implemented using a basic sorting algorithm.
         int n = books.size();
         for (int i = 0; i < n - 1; i++)
         {
@@ -429,8 +500,6 @@ public:
 
     void saveLibraryData()
     {
-        // Prepares all library data (books, students, reservations)
-        // for saving to persistent storage such as a file.
         ofstream file("library_data.txt");
         if (!file.is_open())
         {
@@ -469,8 +538,6 @@ public:
         cout << "Library data saved successfully \n";
     }
 
-    // Helper functions
-    // Helper function for calculating due date
     string calculateDueDate(int daysToAdd)
     {
         time_t now = time(0);
@@ -494,12 +561,41 @@ public:
         return string(buffer);
     }
 
+    void displayBorrowedBooks(string studentID)
+    {
+        Student *student = findStudentById(studentID);
+
+        if (student == nullptr)
+        {
+            cout << "Student not found.\n";
+            return;
+        }
+
+        bool hasBorrowed = false;
+
+        cout << "\nBorrowed Books for Student ID: " << studentID << endl;
+
+        for (int i = 0; i < maxBorrows; i++)
+        {
+            if (student->borrowedBooks[i].bookID != 0)
+            {
+                hasBorrowed = true;
+                cout << "Book ID: " << student->borrowedBooks[i].bookID
+                     << " | Return Date: " << student->borrowedBooks[i].returnDate
+                     << endl;
+            }
+        }
+
+        if (!hasBorrowed)
+        {
+            cout << "No books currently borrowed.\n";
+        }
+    }
+
     // =====================================================
     // Menu System & Quality-of-Life Utilities
     // =====================================================
 
-    // Pauses program execution until the user presses Enter.
-    // Prevents information from disappearing too quickly.
     void displayMainMenu()
     {
         int choice;
@@ -516,8 +612,6 @@ public:
 
         handleUserChoice(choice);
     }
-    // Menu with option asking if the user is a student or admin (no passwords and stuff, just 1. admin 2. user then lead to uses)
-    // Displays all available actions in a user-friendly menu format.
 
     void handleUserChoice(int choice)
     {
@@ -539,7 +633,6 @@ public:
         else
         {
             cout << "Invalid choice. Please try again." << endl;
-            pauseForUser();
         }
     }
     // Handles user menu selection and calls the corresponding system operation.
@@ -558,6 +651,7 @@ public:
             cout << "5. Display All Books" << endl;
             cout << "6. Sort Books by Title" << endl;
             cout << "7. Save Library Data" << endl;
+            cout << "8. Show all overdue books" << endl;
             cout << "0. Back to Main Menu" << endl;
             cout << "Enter your choice: ";
             cin >> adminChoice;
@@ -590,7 +684,6 @@ public:
                 {
                     cout << "Failed to add book." << endl;
                 }
-                pauseForUser();
                 break;
             }
             case 2:
@@ -612,9 +705,8 @@ public:
                 }
                 else
                 {
-                    cout << "Failed to update book." << endl;
+                    cout << "Failed to update book. Book with ID not found!" << endl;
                 }
-                pauseForUser();
                 break;
             }
             case 3:
@@ -630,7 +722,6 @@ public:
                 {
                     cout << "Failed to remove book." << endl;
                 }
-                pauseForUser();
                 break;
             }
             case 4:
@@ -652,35 +743,33 @@ public:
                 {
                     cout << "Failed to register student." << endl;
                 }
-                pauseForUser();
                 break;
             }
             case 5:
             {
                 displayAllBooks();
-                pauseForUser();
                 break;
             }
             case 6:
             {
                 sortBooksByTitle();
                 cout << "Books sorted by title." << endl;
-                pauseForUser();
                 break;
             }
             case 7:
             {
                 saveLibraryData();
                 cout << "Library data saved." << endl;
-                pauseForUser();
                 break;
             }
+            case 8:
+                displayOverdueBooks();
+                break;
             case 0:
                 displayMainMenu();
                 break;
             default:
                 cout << "Invalid choice. Please try again." << endl;
-                pauseForUser();
             }
         } while (adminChoice != 0);
     }
@@ -711,6 +800,7 @@ public:
             cout << "6. Reserve Book" << endl;
             cout << "7. View Fine" << endl;
             cout << "8. Display All Books" << endl;
+            cout << "9. Display Borrowed Books" << endl;
             cout << "0. Back to Main Menu" << endl;
             cout << "Enter your choice: ";
             cin >> studentChoice;
@@ -736,7 +826,6 @@ public:
                         cout << "ID: " << b->id << ", Title: " << b->title << ", Author: " << b->author << endl;
                     }
                 }
-                pauseForUser();
                 break;
             }
             case 2:
@@ -757,7 +846,6 @@ public:
                         cout << "ID: " << b->id << ", Title: " << b->title << ", Author: " << b->author << endl;
                     }
                 }
-                pauseForUser();
                 break;
             }
             case 3:
@@ -773,7 +861,6 @@ public:
                 {
                     cout << "Failed to borrow book." << endl;
                 }
-                pauseForUser();
                 break;
             }
             case 4:
@@ -793,7 +880,6 @@ public:
                 {
                     cout << "Failed to return book." << endl;
                 }
-                pauseForUser();
                 break;
             }
             case 5:
@@ -809,7 +895,6 @@ public:
                 {
                     cout << "Failed to renew book." << endl;
                 }
-                pauseForUser();
                 break;
             }
             case 6:
@@ -825,28 +910,27 @@ public:
                 {
                     cout << "Failed to reserve book." << endl;
                 }
-                pauseForUser();
                 break;
             }
             case 7:
             {
                 int fine = calculateTotalFine(studentID);
                 cout << "Total fine: $" << fine << endl;
-                pauseForUser();
                 break;
             }
             case 8:
             {
                 displayAllBooks();
-                pauseForUser();
                 break;
             }
+            case 9:
+                displayBorrowedBooks(studentID);
+                break;
             case 0:
                 displayMainMenu();
                 break;
             default:
                 cout << "Invalid choice. Please try again." << endl;
-                pauseForUser();
             }
         } while (studentChoice != 0);
     }
@@ -876,105 +960,67 @@ public:
         }
     }
     // Displays all books with formatted details for better readability.
-
-    void pauseForUser()
-    {
-        cout << "Press Enter to continue...";
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-    }
-    // Pauses program execution until the user presses Enter.
-    // Prevents information from disappearing too quickly.
 };
 
 int main()
 {
     LibraryManagementSystem lms;
 
+    // ===============================
+    // Dummy Books
+    // ===============================
+    Book b1;
+    b1.id = 1;
+    b1.title = "DSA";
+    b1.author = "Mark Allen Weiss";
+    b1.category = "Computer Science";
+    b1.description = "Core DSA concepts";
+    b1.totalCopies = 3;
+    b1.availableCopies = 3;
+
+    Book b2;
+    b2.id = 2;
+    b2.title = "Introduction to Algorithms";
+    b2.author = "Cormen";
+    b2.category = "Computer Science";
+    b2.description = "Algorithm design and analysis";
+    b2.totalCopies = 2;
+    b2.availableCopies = 2;
+
+    Book b3;
+    b3.id = 3;
+    b3.title = "Clean Code";
+    b3.author = "Robert C. Martin";
+    b3.category = "Software Engineering";
+    b3.description = "Best coding practices";
+    b3.totalCopies = 4;
+    b3.availableCopies = 4;
+
+    lms.addBook(b1);
+    lms.addBook(b2);
+    lms.addBook(b3);
+
+    // ===============================
+    // Dummy Students
+    // ===============================
+    Student s1;
+    s1.id = "S001";
+    s1.name = "Alice";
+    s1.phoneNumber = "0911111111";
+    s1.email = "alice@example.com";
+
+    Student s2;
+    s2.id = "S002";
+    s2.name = "Bob";
+    s2.phoneNumber = "0922222222";
+    s2.email = "bob@example.com";
+
+    lms.registerStudent(s1);
+    lms.registerStudent(s2);
+    // ===============================
+    // Start Menu Loop
+    // ===============================
     lms.displayMainMenu();
 
     return 0;
-}
-
-bool LibraryManagementSystem::borrowBook(int bookID, string studentID)
-{
-    Book *book = searchBookById(bookID);
-    Student *student = findStudentById(studentID);
-
-    if (!book || !student)
-        return false;
-
-    if (book->availableCopies <= 0)
-        return false;
-
-    // Find empty loan slot
-    for (int i = 0; i < maxBorrows; i++)
-    {
-        if (student->borrowedBooks[i].bookID == 0)
-        {
-            student->borrowedBooks[i].bookID = bookID;
-            student->borrowedBooks[i].studentID = studentID;
-            student->borrowedBooks[i].returnDate = calculateDueDate(loanDuration);
-
-            book->availableCopies--;
-            return true;
-        }
-    }
-
-    return false; // borrow limit reached
-}
-
-bool LibraryManagementSystem::returnBook(int bookID, string studentID, string returnDate)
-{
-    Book *book = searchBookById(bookID);
-    Student *student = findStudentById(studentID);
-
-    if (!book || !student)
-        return false;
-
-    for (int i = 0; i < maxBorrows; i++)
-    {
-        if (student->borrowedBooks[i].bookID == bookID)
-        {
-            // Fine calculation (simple)
-            if (returnDate > student->borrowedBooks[i].returnDate)
-                student->fine += 10;
-
-            // Clear loan record
-            student->borrowedBooks[i].bookID = 0;
-            student->borrowedBooks[i].studentID = "";
-            student->borrowedBooks[i].returnDate = "";
-
-            book->availableCopies++;
-
-            processReservations(bookID);
-            return true;
-        }
-    }
-
-    return false; // book not found in student's loans
-}
-
-bool LibraryManagementSystem::renewBook(int bookID, string studentID)
-{
-    // Check if another student has reserved this book
-    for (const auto &r : reservedBooks)
-    {
-        if (r.bookID == bookID && r.studentID != studentID)
-            return false;
-    }
-
-    Student *student = findStudentById(studentID);
-    if (!student)
-        return false;
-
-    for (int i = 0; i < maxBorrows; i++)
-    {
-        if (student->borrowedBooks[i].bookID == bookID)
-        {
-            student->borrowedBooks[i].returnDate = calculateDueDate(loanDuration);
-            return true;
-        }
-    }
-
-    return false; // book not borrowed by this student
 }
